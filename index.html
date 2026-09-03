@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>패러데이 전자기 유도 시뮬레이션</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Pretendard', sans-serif, Arial;
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #1a252f;
+        }
+        
+        /* 상단 영역: 인터랙션 실험실 & 변인 제어 */
+        .top-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            background: #fafafa;
+            border: 1fr solid #e2e8f0;
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid #e0e0e0;
+        }
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 캔버스 및 렌더링 영역 */
+        #simCanvas {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            width: 100%;
+            height: 200px;
+            cursor: grab;
+        }
+        #simCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* 컨트롤 슬라이더 */
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        input[type="range"] {
+            width: 100%;
+            accent-color: #2563eb;
+        }
+        .fixed-variable {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* 하단 영역: 결과 데이터 및 그래프 */
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        .data-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .card {
+            background: #edf2f7;
+            padding: 12px 15px;
+            border-radius: 8px;
+        }
+        .card-title {
+            font-size: 12px;
+            color: #475569;
+            margin-bottom: 4px;
+        }
+        .card-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .formula-box {
+            background: #eff6ff;
+            border-left: 4px solid #2563eb;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        #graphCanvas {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            width: 100%;
+            height: 280px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>[1차시] 패러데이 전자기 유도 실시간 시뮬레이션</h1>
+
+    <div class="top-section">
+        <!-- 실험 영역 -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>실험실 (자석을 마우스로 드래그하세요)</span>
+            </div>
+            <canvas id="simCanvas" width="480" height="200"></canvas>
+        </div>
+
+        <!-- 변인 설정 (조작변인/통제변인) -->
+        <div class="panel">
+            <div class="panel-title">③ 변인 설정</div>
+            
+            <div class="control-group">
+                <label>조작변인: 자석 속도 배율 <span id="vVal">5 m/s</span></label>
+                <input type="range" id="vSlider" min="1" max="10" value="5" step="0.5">
+            </div>
+
+            <div class="control-group">
+                <label>조작변인: 자석의 세기 (B) <span id="bVal">3.0 T</span></label>
+                <input type="range" id="bSlider" min="1" max="5" value="3" step="0.5">
+            </div>
+
+            <div class="control-group">
+                <label>조작변인: 코일의 감은 수 (N) <span id="nVal">100 회</span></label>
+                <input type="range" id="nSlider" min="10" max="200" value="100" step="10">
+            </div>
+
+            <div class="fixed-variable">
+                <strong>통제변인 (고정값):</strong> 코일 저항 $R = 10\ \Omega$, 자석의 극
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-section">
+        <!-- 결과 수치 & 공식 -->
+        <div class="data-display">
+            <div class="formula-box">
+                <strong>② 관련 과학 개념·원리:</strong><br>
+                • 유도 기전력: $V = -N \frac{\Delta \Phi}{\Delta t}$<br>
+                • 유도 전류: $I = \frac{V}{R}$
+            </div>
+
+            <div class="card">
+                <div class="card-title">실시간 유도 기전력 (V)</div>
+                <div class="card-value" id="vOut">0.00 V</div>
+            </div>
+            <div class="card">
+                <div class="card-title">실시간 유도 전류 (I)</div>
+                <div class="card-value" id="iOut">0.00 A</div>
+            </div>
+            <div class="card">
+                <div class="card-title">최대 유도 전류 (I_max)</div>
+                <div class="card-value" id="iMaxOut" style="color: #dc2626;">0.00 A</div>
+            </div>
+        </div>
+
+        <!-- 그래프 렌더링 영역 -->
+        <div class="panel">
+            <div class="panel-title">실시간 유도 전류 변화 그래프</div>
+            <canvas id="graphCanvas" width="650" height="250"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 캔버스 요소 지정
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+
+    // UI 컨트롤 엘리먼트
+    const vSlider = document.getElementById('vSlider');
+    const bSlider = document.getElementById('bSlider');
+    const nSlider = document.getElementById('nSlider');
+    
+    const vVal = document.getElementById('vVal');
+    const bVal = document.getElementById('bVal');
+    const nVal = document.getElementById('nVal');
+
+    const vOut = document.getElementById('vOut');
+    const iOut = document.getElementById('iOut');
+    const iMaxOut = document.getElementById('iMaxOut');
+
+    // 상태 및 변수 정의
+    const R = 10; // 통제변인: 저항 10옴
+    let isDragging = false;
+    let magnetX = 80;
+    const magnetY = 70;
+    const magnetWidth = 100;
+    const magnetHeight = 40;
+    
+    let lastX = magnetX;
+    let lastTime = Date.now();
+    
+    let currentV = 0;
+    let currentI = 0;
+    let maxI = 0;
+
+    // 그래프용 시간 시퀀스 데이터 배열
+    const graphData = [];
+    const maxDataPoints = 150;
+
+    // 슬라이더 이벤트 갱신
+    vSlider.oninput = () => vVal.innerText = `${vSlider.value} m/s`;
+    bSlider.oninput = () => bVal.innerText = `${parseFloat(bSlider.value).toFixed(1)} T`;
+    nSlider.oninput = () => nVal.innerText = `${nSlider.value} 회`;
+
+    // 마우스 드래그 상호작용
+    simCanvas.addEventListener('mousedown', (e) => {
+        const rect = simCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (mouseX >= magnetX && mouseX <= magnetX + magnetWidth &&
+            mouseY >= magnetY && mouseY <= magnetY + magnetHeight) {
+            isDragging = true;
+            lastX = mouseX;
+            lastTime = Date.now();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        currentV = 0;
+        currentI = 0;
+    });
+
+    simCanvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const rect = simCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const now = Date.now();
+        const dt = (now - lastTime) / 1000; // 초 단위
+
+        if (dt > 0) {
+            const dx = mouseX - lastX;
+            const mouseSpeed = dx / dt; // px/s
+            
+            magnetX = mouseX - magnetWidth / 2;
+
+            // 물리 계산 로직
+            const speedMultiplier = parseFloat(vSlider.value);
+            const B = parseFloat(bSlider.value);
+            const N = parseInt(nSlider.value);
+
+            // 속도 변인 결합 계산 (위치 변화율)
+            const effectiveVelocity = (mouseSpeed / 100) * (speedMultiplier / 5);
+            
+            // 패러데이 전자기 유도 법칙: V = -N * (dPhi/dt)
+            // dPhi/dt ∝ B * velocity
+            currentV = -1 * N * B * effectiveVelocity * 0.05;
+            currentI = currentV / R;
+
+            if (Math.abs(currentI) > maxI) {
+                maxI = Math.abs(currentI);
+            }
+
+            lastX = mouseX;
+            lastTime = now;
+        }
+    });
+
+    // 화면 애니메이션 루프
+    function animate() {
+        // 드래그 중이 아닐 때 정지 감지
+        if (!isDragging) {
+            currentV = 0;
+            currentI = 0;
+        }
+
+        // 그래프 데이터 저장
+        graphData.push(currentI);
+        if (graphData.length > maxDataPoints) {
+            graphData.shift();
+        }
+
+        // 수치 갱신
+        vOut.innerText = `${currentV.toFixed(2)} V`;
+        iOut.innerText = `${currentI.toFixed(2)} A`;
+        iMaxOut.innerText = `${maxI.toFixed(2)} A`;
+
+        // 렌더링
+        drawSimulation();
+        drawGraph();
+
+        requestAnimationFrame(animate);
+    }
+
+    // 실험실 캔버스 그리기
+    function drawSimulation() {
+        simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+
+        // 1. 코일 그리기 (뒤쪽)
+        const coilX = 260;
+        const coilY = 50;
+        const coils = 8;
+        
+        simCtx.strokeStyle = '#b45309';
+        simCtx.lineWidth = 5;
+
+        // 코일 루프
+        for (let i = 0; i < coils; i++) {
+            simCtx.beginPath();
+            simCtx.ellipse(coilX + i * 12, coilY + 40, 10, 40, 0, 0, Math.PI * 2);
+            simCtx.stroke();
+        }
+
+        // 2. 자석 그리기 (N/S극)
+        // S극 (파란색)
+        simCtx.fillStyle = '#2563eb';
+        simCtx.fillRect(magnetX, magnetY, magnetWidth / 2, magnetHeight);
+        simCtx.fillStyle = '#ffffff';
+        simCtx.font = 'bold 16px Arial';
+        simCtx.fillText('S', magnetX + 15, magnetY + 25);
+
+        // N극 (빨간색)
+        simCtx.fillStyle = '#dc2626';
+        simCtx.fillRect(magnetX + magnetWidth / 2, magnetY, magnetWidth / 2, magnetHeight);
+        simCtx.fillStyle = '#ffffff';
+        simCtx.fillText('N', magnetX + magnetWidth / 2 + 15, magnetY + 25);
+
+        // 자석 테두리
+        simCtx.strokeStyle = '#333';
+        simCtx.lineWidth = 1;
+        simCtx.strokeRect(magnetX, magnetY, magnetWidth, magnetHeight);
+
+        // 드래그 안내 문구
+        if (!isDragging && magnetX === 80) {
+            simCtx.fillStyle = '#64748b';
+            simCtx.font = '12px Arial';
+            simCtx.fillText('← 자석을 드래그하여 코일 속으로 이동하세요 →', 50, 160);
+        }
+    }
+
+    // 그래프 캔버스 그리기
+    function drawGraph() {
+        graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+        const margin = 40;
+        const width = graphCanvas.width - margin * 2;
+        const height = graphCanvas.height - margin * 2;
+        const centerY = margin + height / 2;
+
+        // 축 그리기
+        graphCtx.strokeStyle = '#94a3b8';
+        graphCtx.lineWidth = 1.5;
+        
+        // X축 (시간 s)
+        graphCtx.beginPath();
+        graphCtx.moveTo(margin, centerY);
+        graphCtx.lineTo(margin + width, centerY);
+        graphCtx.stroke();
+
+        // Y축 (전류 A)
+        graphCtx.beginPath();
+        graphCtx.moveTo(margin, margin);
+        graphCtx.lineTo(margin, margin + height);
+        graphCtx.stroke();
+
+        // 축 라벨 및 단위
+        graphCtx.fillStyle = '#334155';
+        graphCtx.font = '12px Arial';
+        graphCtx.fillText('시간 (s)', graphCanvas.width - 55, centerY + 20);
+        graphCtx.fillText('유도 전류 I (A)', margin - 35, margin - 10);
+        
+        // 눈금 (기본 범위 지정: -2.0A ~ +2.0A)
+        const scale = Math.max(2.0, maxI * 1.1);
+        graphCtx.fillText(`+${scale.toFixed(1)}`, margin - 35, margin + 10);
+        graphCtx.fillText(`-${scale.toFixed(1)}`, margin - 35, margin + height);
+        graphCtx.fillText('0', margin - 15, centerY + 4);
+
+        // 유도 전류 데이터 선 그리기
+        graphCtx.strokeStyle = '#2563eb';
+        graphCtx.lineWidth = 2;
+        graphCtx.beginPath();
+
+        const step = width / (maxDataPoints - 1);
+
+        for (let i = 0; i < graphData.length; i++) {
+            const x = margin + i * step;
+            // Y 위치 = 중심 - (값 / 스케일) * 반고
+            const y = centerY - (graphData[i] / scale) * (height / 2);
+
+            if (i === 0) graphCtx.moveTo(x, y);
+            else graphCtx.lineTo(x, y);
+        }
+        graphCtx.stroke();
+    }
+
+    // 애니메이션 시작
+    animate();
+</script>
+
+</body>
+</html>
